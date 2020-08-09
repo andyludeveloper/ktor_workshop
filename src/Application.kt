@@ -9,8 +9,10 @@ import kotlinx.html.*
 import kotlinx.css.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
+import io.ktor.features.ContentNegotiation
 import io.ktor.freemarker.FreeMarker
 import io.ktor.freemarker.FreeMarkerContent
+import io.ktor.gson.gson
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -20,6 +22,12 @@ fun Application.module(testing: Boolean = false) {
     install(FreeMarker) {
         templateLoader = ClassTemplateLoader(this::class.java.classLoader, "templates")
     }
+
+    install(ContentNegotiation) {
+        gson {
+        }
+    }
+
     var variable:String = "Variable"
 
     val client = HttpClient(Apache) {
@@ -50,6 +58,11 @@ fun Application.module(testing: Boolean = false) {
 
         get("/html-freemarker") {
             call.respond(FreeMarkerContent("index.ftl", mapOf("data" to IndexData(listOf(1, 2, 3))), ""))
+        }
+
+        get("/json/gson") {
+            val user = environment.config.property("ktor.database.user").getString()
+            call.respond(mapOf("hello" to user))
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.andyludeveloper
 
+import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -8,13 +9,17 @@ import kotlinx.html.*
 import kotlinx.css.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
+import io.ktor.freemarker.FreeMarker
+import io.ktor.freemarker.FreeMarkerContent
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
 @Suppress("unused") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
-
+    install(FreeMarker) {
+        templateLoader = ClassTemplateLoader(this::class.java.classLoader, "templates")
+    }
     var variable:String = "Variable"
 
     val client = HttpClient(Apache) {
@@ -42,8 +47,14 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
         }
+
+        get("/html-freemarker") {
+            call.respond(FreeMarkerContent("index.ftl", mapOf("data" to IndexData(listOf(1, 2, 3))), ""))
+        }
     }
 }
+
+data class IndexData(val items: List<Int>)
 
 fun FlowOrMetaDataContent.styleCss(builder: CSSBuilder.() -> Unit) {
     style(type = ContentType.Text.CSS.toString()) {

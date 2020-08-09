@@ -2,7 +2,6 @@ package com.andyludeveloper
 
 import io.ktor.application.*
 import io.ktor.response.*
-import io.ktor.request.*
 import io.ktor.routing.*
 import io.ktor.http.*
 import io.ktor.html.*
@@ -10,6 +9,7 @@ import kotlinx.html.*
 import kotlinx.css.*
 import io.ktor.client.*
 import io.ktor.client.engine.apache.*
+import io.ktor.util.pipeline.PipelineContext
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -28,16 +28,7 @@ fun Application.module(testing: Boolean = false) {
         }
 
         get("/html-dsl") {
-            call.respondHtml {
-                body {
-                    h1 { +"HTML" }
-                    ul {
-                        for (n in 1..10) {
-                            li { +"$n" }
-                        }
-                    }
-                }
-            }
+            htmlDsl()
         }
 
         get("/styles.css") {
@@ -50,6 +41,19 @@ fun Application.module(testing: Boolean = false) {
                 }
                 rule("p.myclass") {
                     color = Color.blue
+                }
+            }
+        }
+    }
+}
+
+private suspend fun PipelineContext<Unit, ApplicationCall>.htmlDsl() {
+    call.respondHtml {
+        body {
+            h1 { +"HTML" }
+            ul {
+                for (n in 1..10) {
+                    li { +"$n" }
                 }
             }
         }

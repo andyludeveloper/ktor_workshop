@@ -13,6 +13,38 @@ import io.ktor.features.ContentNegotiation
 import io.ktor.freemarker.FreeMarker
 import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.gson.gson
+import org.jetbrains.exposed.dao.EntityID
+import org.jetbrains.exposed.dao.IntEntity
+import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.dao.IntIdTable
+import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.transactions.transaction
+
+object Users : IntIdTable() {
+    val name = varchar("name", 50).index()
+    val city = reference("city", Cities)
+    val age = integer("age")
+}
+
+object Cities: IntIdTable() {
+    val name = varchar("name", 50)
+}
+
+class User(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<User>(Users)
+
+    var name by Users.name
+    var city by City referencedOn Users.city
+    var age by Users.age
+}
+
+class City(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<City>(Cities)
+
+    var name by Cities.name
+    val users by User referrersOn Users.city
+}
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -33,6 +65,19 @@ fun Application.module(testing: Boolean = false) {
     val client = HttpClient(Apache) {
     }
 
+    Database.connect(url="jdbc:h2:mem:test;DB_CLOSE_DELAY=-1;", driver = "org.h2.Driver", user = "root", password = "")
+    transaction{
+        SchemaUtils.create(Users, Cities)
+        val taipei = City.new {
+            name = "Taipei"
+        }
+        User.new {
+            name = "Leo"
+            city = taipei
+            age = 40
+        }
+    }
+
     routing {
         get("/") {
             call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
@@ -41,7 +86,12 @@ fun Application.module(testing: Boolean = false) {
         get("/html-dsl") {
             htmlDsl()
         }
-
+        get("/get-user"){
+            val users = transaction{
+                User.all().joinToString { "${it.name} live in ${it.city.name} is ${it.age} years old." }
+            }
+            call.respondText(users, contentType = ContentType.Text.Plain)
+        }
         get("/styles.css") {
             call.respondCss {
                 body {
@@ -57,7 +107,8 @@ fun Application.module(testing: Boolean = false) {
         }
 
         get("/html-freemarker") {
-            call.respond(FreeMarkerContent("index.ftl", mapOf("data" to IndexData(listOf(1, 2, 3))), ""))
+            call.respond(FreeMarkerContent("index.ftl",
+                    mapOf("data" to IndexData(listOf(1, 2, 3))), ""))
         }
 
         get("/json/gson") {
